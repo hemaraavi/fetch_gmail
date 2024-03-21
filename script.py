@@ -32,7 +32,7 @@ def fetch_emails():
     '''
     service = gmail_authenticate()
     # Get the list of messages in the user's mailbox
-    results = service.users().messages().list(userId='me', labelIds=['INBOX'],maxResults=1).execute()
+    results = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
     messages = results.get('messages', [])
     # Create a database session
     session = create_db_session()
