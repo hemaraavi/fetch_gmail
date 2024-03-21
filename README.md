@@ -48,7 +48,7 @@ This script fetches emails from the Gmail inbox, applies predefined rules to fil
 ## Configuration
 
 - Ensure that the `token.pickle` file (containing user access and refresh tokens) is present in the project directory. This file is generated during the authentication process.
-- Define email processing rules in the `rules.json` file. Each rule consists of conditions and actions to be performed on matching emails.
+- Define email processing rules as per your requirements in the `rules.json` file. Each rule consists of conditions and actions to be performed on matching emails.
 
 
 ## Credits
