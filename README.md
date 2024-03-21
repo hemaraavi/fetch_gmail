@@ -35,9 +35,9 @@ This project automates the processing of emails in a Gmail account based on pred
     ```bash
     python script.py
     ```
-6.To Run Test case :
+6. To Run the Test cases :
 
-    ```bash
+   ```bash
     pytest pytests.py
     ```
 
