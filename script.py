@@ -22,7 +22,6 @@ fields = {'From':'sender', 'Subject':'subject', 'To':'recepient',
 def main():
     try:
         fetch_emails()
-        gmail_authenticate()
         modify_emails()
     except Exception as e:
         print(f"An error occurred: {e}")
