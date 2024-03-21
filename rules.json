@@ -1,0 +1,13 @@
+{
+    "rules": [
+      {
+        "conditions": [
+          {"field": "From", "predicate": "contains", "value": "time4"},
+          {"field": "Subject", "predicate": "contains", "value": "GATE"},
+          {"field": "Received Date", "predicate": "less than", "value": "2"}
+        ],
+        "predicate": "All",
+        "actions": ["Mark as Read"]
+      }
+    ]
+  }
