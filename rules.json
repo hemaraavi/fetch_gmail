@@ -2,8 +2,8 @@
     "rules": [
       {
         "conditions": [
-          {"field": "From", "predicate": "contains", "value": "time4"},
-          {"field": "Subject", "predicate": "contains", "value": "GATE"},
+          {"field": "From", "predicate": "contains", "value": "example.com"},
+          {"field": "Subject", "predicate": "contains", "value": "example"},
           {"field": "Received Date", "predicate": "less than", "value": "2"}
         ],
         "predicate": "All",
