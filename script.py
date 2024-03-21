@@ -26,6 +26,38 @@ def main():
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def fetch_emails():
+    '''
+    Fetches emails from the user's mailbox and inserts them into the database
+    '''
+    service = gmail_authenticate()
+    # Get the list of messages in the user's mailbox
+    results = service.users().messages().list(userId='me', labelIds=['INBOX'],maxResults=1).execute()
+    messages = results.get('messages', [])
+    # Create a database session
+    session = create_db_session()
+    for msg in messages:
+        # Get the full email message
+        txt = service.users().messages().get(userId='me', id=msg['id'], format='metadata').execute()
+        email_dict = {'message_id': msg['id'], 'label': 'INBOX'}
+        try:
+            headers = txt['payload']['headers']
+            for each in headers:
+                for field_key,field_value in fields.items():
+                    if each['name'] == field_key:
+                        if field_key == 'Date':
+                            received_date = dateutil.parser.parse(each['value'])
+                            email_dict[field_value] = received_date
+                        else:
+                            email_dict[field_value] = each['value']
+            # Insert the email into the database
+            email = Email(**email_dict)
+            session.add(email)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+    session.commit()
+    session.close()
+
 def gmail_authenticate():
     ''' 
     Authenticates the user and creates a Gmail service object
@@ -69,47 +101,43 @@ def create_db_session():
     return session
 
 
-def fetch_emails():
-    service = gmail_authenticate()
-    results = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
-    messages = results.get('messages', [])
-    session = create_db_session()
-    for msg in messages:
-        txt = service.users().messages().get(userId='me', id=msg['id'], format='full').execute()
-        email_dict = {'message_id': msg['id'], 'label': 'INBOX'}
-        try:
-            headers = txt['payload']['headers']
-            for each in headers:
-                for field_key,field_value in fields.items():
-                    if each['name'] == field_key:
-                        if field_key == 'Date':
-                            received_date = dateutil.parser.parse(each['value'])
-                            email_dict[field_value] = received_date
-                        else:
-                            email_dict[field_value] = each['value']
-            email = Email(**email_dict)
-            session.add(email)
-        except Exception as e:
-            print(f"An error occurred: {e}")
-    session.commit()
 
 def load_rules():
+    '''
+    Loads the rules from the rules.json file
+    Returns:
+        rules: List of rules
+    '''
     with open('rules.json', 'r') as file:
         return json.load(file)["rules"]
 
 
 def modify_emails():
+    '''
+    Modifies the emails based on the rules defined in rules.json
+    '''
     as_read_ids,unread_ids,move_ids = build_query_based_on_rules()
+    # Modify the emails based on the rules
     modify_api_call(as_read_ids,unread_ids,move_ids)
 
     
 def build_conditions(where_conditions,params,condition):
+    '''
+    Builds the conditions for the SQL query based on the rule conditions
+    Args:
+        where_conditions: List of conditions
+        params: Dictionary of parameters
+        condition: Condition from the rule
+    Returns:
+        where_conditions: List of conditions
+        params: Dictionary of parameters
+    '''
     if 'field' not in condition or 'predicate' not in condition or 'value' not in condition:
         return where_conditions,params
     field = fields.get(condition["field"],'')
     predicate = condition["predicate"].lower()
     value = condition["value"]
-
+    # Check if the field is valid
     if predicate == "contains":
         where_conditions.append(f"{field} LIKE :{field}_like")
         params[f"{field}_like"] = f"%{value}%"
@@ -140,12 +168,11 @@ def build_conditions(where_conditions,params,condition):
 
 
 def build_query_based_on_rules():
-    # Assuming email is a dict with necessary information (e.g., 'from', 'subject')
     rules = load_rules()
     where_conditions = []
     params = {}
     session = create_db_session()
-    as_read_id,unread_ids,move_ids = [],[],[]
+    as_read_ids,unread_ids,move_ids = [],[],[]
     for rule in rules:
         message_ids = []
         for condition in rule["conditions"]:
@@ -163,9 +190,6 @@ def build_query_based_on_rules():
 
         # Construct the final SQL query
         sql = text(f"SELECT message_id FROM email WHERE {where_clause}")
-
-        # Print SQL query (for debugging purposes)
-        print(sql)
         # Execute the query with parameters
         result = session.execute(sql, params)
 
@@ -173,36 +197,48 @@ def build_query_based_on_rules():
             message_ids.append(row[0])
 
         for action in rule["actions"]:
-            if action["action"] == "Mark as Read":
+            if action == "Mark as Read":
                 as_read_ids.extend(message_ids)
-            elif action["action"] == "Move Message":
+            elif action == "Move Message":
                 move_ids.extend(message_ids)
-            elif action["action"] == "Mark as Unread":
+            elif action == "Mark as Unread":
                 unread_ids.extend(message_ids)
+    session.close()
     return as_read_ids,unread_ids,move_ids
 
 def modify_api_call(as_read_ids,unread_ids,move_ids):
+    '''
+    Modifies the emails based on the rules
+    Args:
+        as_read_ids: List of message IDs to be marked as read
+        unread_ids: List of message IDs to be marked as unread
+        move_ids: List of message IDs to be moved to the inbox
+    '''
     url = f'https://gmail.googleapis.com/gmail/v1/users/me/messages/batchModify'
     headers = {'Authorization': f'Bearer {ACCESS_TOKEN}', 'Content-Type': 'application/json'}
-    data = {'ids':as_read_ids,'removeLabelIds': ['UNREAD']}
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code == 200 or response.status_code == 204:
-        print(f"Messages marked as read.")
-    else:
-        print(f"Failed to mark messages as read. Status code: {response.status_code}")
-    data = {'ids':unread_ids,'addLabelIds': ['UNREAD']}
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code == 200 or response.status_code == 204:
-        print(f"Messages marked as unread.")
-    else:
-        print(f"Failed to mark messages as unread. Status code: {response.status_code}")
-    data = {'ids':move_ids,'addLabelIds': ['INBOX']}
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code == 200 or response.status_code == 204:
-        print(f"Messages moved ")
-    else:
-        print(f"Failed to move  {response.status_code}")
-
+    if as_read_ids:
+        data = {'ids':as_read_ids,'removeLabelIds': ['UNREAD']}
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200 or response.status_code == 204:
+            print(f"Messages marked as read.")
+        else:
+            print(f"Failed to mark messages as read. Status code: {response.status_code}")
+    if unread_ids:
+        data = {'ids':unread_ids,'addLabelIds': ['UNREAD']}
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200 or response.status_code == 204:
+            print(f"Messages marked as unread.")
+        else:
+            print(f"Failed to mark messages as unread. Status code: {response.status_code}")
+    if move_ids:
+        data = {'ids':move_ids,'addLabelIds': ['INBOX']}
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200 or response.status_code == 204:
+            print(f"Messages moved ")
+        else:
+            print(f"Failed to move  {response.status_code}")
+    if not as_read_ids and not unread_ids and not move_ids:
+        print(f"No rules matched.")
 
 if __name__ == "__main__":
     main()
