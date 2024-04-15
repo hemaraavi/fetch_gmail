@@ -30,7 +30,7 @@ This project automates the processing of emails in a Gmail account based on pred
    - Create credentials (OAuth client ID) and download the credentials.json file.
    - Place the credentials.json file in the project directory.
    - 
-5. Define your own set of rules and operation you want the script to perform in rules.json file.
+5. Define your own set of rules and operation you want the script to perform in `rules.json` file.
 
 6. Run the script:
 
