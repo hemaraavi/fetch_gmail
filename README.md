@@ -29,13 +29,15 @@ This project automates the processing of emails in a Gmail account based on pred
    - Enable the Gmail API for your project.
    - Create credentials (OAuth client ID) and download the credentials.json file.
    - Place the credentials.json file in the project directory.
+   - 
+5. Define your own set of rules and operation you want the script to perform in rules.json file.
 
-5. Run the script:
+6. Run the script:
 
     ```bash
     python script.py
     ```
-6. To Run the Test cases :
+7. To Run the Test cases :
 
    ```bash
     pytest pytests.py
